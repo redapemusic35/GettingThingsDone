@@ -1,0 +1,15 @@
+services:
+  # A web service with a full backend
+  - type: web
+    name: gtd-task-manager
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "5000"
+    nodeVersion: 20.x
