@@ -13,21 +13,6 @@ import Database from "better-sqlite3";
 const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoints for Render
-  app.get("/api/health", (req, res) => {
-    // Set specific headers to prevent caching
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Content-Type', 'application/json');
-    // Send a 200 OK response with a simple JSON status
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-  
-  // Root health check for Render (alternative)
-  app.get("/health", (req, res) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Content-Type', 'application/json');
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-  });
 
   // Tasks API endpoints
   app.get("/api/tasks", async (req, res) => {
@@ -65,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch tasks with due dates" });
     }
   });
-  
+
   // Test route to create a simple task directly (for debugging)
   app.get("/api/tasks/test-create", async (req, res) => {
     try {
@@ -78,11 +63,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         project: "test",
         dueDate: "2023-01-01"
       };
-      
+
       console.log("Creating test task:", testTask);
       const createdTask = await storage.createTask(testTask);
       console.log("Test task created successfully:", createdTask);
-      
+
       res.json({
         success: true,
         message: "Test task created successfully",
@@ -134,12 +119,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid task ID" });
       }
-      
+
       const task = await storage.getTask(id);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       res.json(task);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch task" });
@@ -149,12 +134,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks", async (req, res) => {
     try {
       const validationResult = insertTaskSchema.safeParse(req.body);
-      
+
       if (!validationResult.success) {
         const errorMessage = fromZodError(validationResult.error).message;
         return res.status(400).json({ message: errorMessage });
       }
-      
+
       const newTask = await storage.createTask(validationResult.data);
       res.status(201).json(newTask);
     } catch (error) {
@@ -168,19 +153,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid task ID" });
       }
-      
+
       const validationResult = insertTaskSchema.partial().safeParse(req.body);
-      
+
       if (!validationResult.success) {
         const errorMessage = fromZodError(validationResult.error).message;
         return res.status(400).json({ message: errorMessage });
       }
-      
+
       const updatedTask = await storage.updateTask(id, validationResult.data);
       if (!updatedTask) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       res.json(updatedTask);
     } catch (error) {
       res.status(500).json({ message: "Failed to update task" });
@@ -193,12 +178,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid task ID" });
       }
-      
+
       const deleted = await storage.deleteTask(id);
       if (!deleted) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       res.status(204).end();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete task" });
@@ -212,12 +197,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid task ID" });
       }
-      
+
       const updatedTask = await storage.updateTask(id, { completed: true });
       if (!updatedTask) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       res.json(updatedTask);
     } catch (error) {
       res.status(500).json({ message: "Failed to complete task" });
@@ -231,12 +216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid task ID" });
       }
-      
+
       const updatedTask = await storage.updateTask(id, { completed: false });
       if (!updatedTask) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       res.json(updatedTask);
     } catch (error) {
       res.status(500).json({ message: "Failed to restore task" });
@@ -245,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TaskWarrior integration
   const upload = multer({ storage: multer.memoryStorage() });
-  
+
   // Define a schema for TaskWarrior tasks
   const taskwarriorTaskSchema = z.object({
     uuid: z.string(),
@@ -273,11 +258,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         project: "testing",
         dueDate: "2023-01-01"
       };
-      
+
       // Directly create it
       console.log("Importing sample task:", sampleTask);
       const newTask = await storage.createTask(sampleTask);
-      
+
       res.status(200).json({
         message: "Successfully imported 1 sample task",
         importedCount: 1,
@@ -285,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error importing sample task:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to import sample task",
         error: error instanceof Error ? error.message : String(error)
       });
@@ -299,27 +284,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Write the buffer to a temporary file so SQLite can open it
       // Use process.cwd() instead of __dirname for ES modules
       const tmpFilePath = path.join(process.cwd(), 'temp_taskchampion.sqlite3');
-      
+
       try {
         // Make sure we write binary data exactly as is
         fs.writeFileSync(tmpFilePath, buffer, { flag: 'w' });
         console.log(`Wrote SQLite buffer (${buffer.length} bytes) to temporary file: ${tmpFilePath}`);
-        
+
         try {
           // Open the SQLite database with verbose error handling
           console.log("Opening SQLite database file...");
           const db = new Database(tmpFilePath, { readonly: true, verbose: console.log });
           console.log("SQLite database opened successfully");
-          
+
           // Check if it has the right tables for TaskChampion
           const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
           const tableNames = tables.map((t: any) => t.name);
           console.log("Tables in SQLite database:", tableNames);
-          
+
           // Try different possible table names for tasks
           let taskTableName = '';
           const possibleTaskTables = ['tasks', 'task', 'Tasks', 'Task', 'TASKS', 'TASK', 'TaskRC', 'taskrc'];
-          
+
           for (const tableName of possibleTaskTables) {
             if (tableNames.includes(tableName)) {
               taskTableName = tableName;
@@ -327,7 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               break;
             }
           }
-          
+
           // If we didn't find a table with an exact match, try a fuzzy match
           if (!taskTableName && tableNames.length > 0) {
             for (const tableName of tableNames) {
@@ -338,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           }
-          
+
           if (!taskTableName) {
             console.log("Not a TaskChampion database: missing tasks table");
             // Try to see what columns exist in each table
@@ -346,10 +331,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
                 console.log(`Table ${tableName} has columns:`, tableInfo.map((c: any) => c.name));
-                
+
                 // If the table has columns that look like task data (title/description/completed)
                 const columnNames = tableInfo.map((c: any) => c.name.toLowerCase());
-                if (columnNames.includes('title') || columnNames.includes('description') || 
+                if (columnNames.includes('title') || columnNames.includes('description') ||
                     columnNames.includes('completed') || columnNames.includes('status')) {
                   taskTableName = tableName;
                   console.log(`Found potential task table by column names: ${taskTableName}`);
@@ -360,16 +345,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           }
-          
+
           // Still no task table found
           if (!taskTableName) {
             console.log("No suitable task table found in the database");
             return [];
           }
-          
+
           // Query the tasks table
           let tasks: any[] = [];
-          
+
           try {
             // Try to get a single row first to see column names
             let sampleRow;
@@ -382,26 +367,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } catch (e) {
               console.log(`Error getting sample row from ${taskTableName}:`, e);
             }
-            
+
             // Get all rows
             const stmt = db.prepare(`SELECT * FROM ${taskTableName}`);
             tasks = stmt.all();
             console.log(`Found ${tasks.length} tasks in TaskChampion database`);
-            
+
             if (tasks.length === 0) {
               return [];
             }
-            
+
             // Determine column names available (lowercase for case-insensitive matching)
-            const availableColumns = sampleRow ? 
-              Object.keys(sampleRow).map(k => k.toLowerCase()) : 
+            const availableColumns = sampleRow ?
+              Object.keys(sampleRow).map(k => k.toLowerCase()) :
               Object.keys(tasks[0]).map(k => k.toLowerCase());
-            
+
             console.log("Available columns (lowercase):", availableColumns);
-            
+
             // Special handling for TaskChampion format (uuid + data JSON)
             const hasTaskChampionFormat = availableColumns.includes('uuid') && availableColumns.includes('data');
-            
+
             if (hasTaskChampionFormat) {
               console.log("Detected TaskChampion format with uuid and data columns");
               // Process each task to extract data from JSON
@@ -419,16 +404,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
                 return task;
               });
-              
+
               // Show first processed task for debugging
               if (tasks.length > 0) {
                 console.log("First processed TaskChampion task:", JSON.stringify(tasks[0]));
               }
             }
-            
+
             // Log a complete sample row to debug
             console.log("Sample task data:", JSON.stringify(tasks[0], null, 2));
-            
+
             // Transform the tasks to match the TaskWarrior format
             return tasks.map((task: any) => {
               // Create a lowercase key mapping for easier access
@@ -436,13 +421,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               for (const key in task) {
                 taskLower[key.toLowerCase()] = task[key];
               }
-              
+
               console.log("Task with lowercase keys:", JSON.stringify(taskLower, null, 2));
-              
+
               // Basic mapping from TaskChampion to TaskWarrior format
               // Check what fields we have available
               console.log("Looking for description field in:", Object.keys(taskLower));
-              
+
               // Determine the task description field - it could be named differently in different SQLite schemas
               let taskDescription = "Untitled Task";
               if (taskLower.description) {
@@ -458,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } else if (taskLower.task) {
                 taskDescription = taskLower.task;
               }
-              
+
               // Determine status
               let status = "pending";
               if (taskLower.status) {
@@ -468,32 +453,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } else if (taskLower.done === 1 || taskLower.done === true) {
                 status = "completed";
               }
-              
+
               console.log("Found description:", taskDescription, "and status:", status);
-              
+
               const mappedTask: any = {
-                description: taskDescription, 
+                description: taskDescription,
                 status: status
               };
-              
+
               // Extract context from @context pattern
               const contextMatch = mappedTask.description.match(/@(\w+)/);
               if (contextMatch && contextMatch[1]) {
                 mappedTask.annotations = [`@${contextMatch[1]}`];
               }
-              
+
               // Extract project from pro:project pattern
               const projectMatch = mappedTask.description.match(/\bpro:(\w+)/i);
               if (projectMatch && projectMatch[1]) {
                 mappedTask.project = projectMatch[1];
               }
-              
+
               // Extract tags from +tag pattern
               const tagMatches = mappedTask.description.match(/\+(\w+)/g);
               if (tagMatches && tagMatches.length > 0) {
                 mappedTask.tags = tagMatches.map((tag: string) => tag.substring(1));
               }
-              
+
               // Extract due date from due:YYYY-MM-DD pattern
               const dueDateMatch = mappedTask.description.match(/\bdue:(\d{4}-\d{2}-\d{2})/i);
               if (dueDateMatch && dueDateMatch[1]) {
@@ -505,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   console.log("Invalid due date format:", dueDateMatch[1]);
                 }
               }
-              
+
               // Extract annotation fields from TaskChampion format
               // They typically appear as "annotation_1699962011": "some note text"
               const annotationFields: string[] = [];
@@ -514,33 +499,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   annotationFields.push(taskLower[key]);
                 }
               }
-              
+
               if (annotationFields.length > 0) {
                 mappedTask.annotations = annotationFields;
                 // Also add them directly to the mappedTask for debugging
                 mappedTask.annotationTexts = annotationFields.join('\n');
               }
-              
+
               // Add UUID if available
               if (taskLower.uuid) {
                 mappedTask.uuid = taskLower.uuid;
               }
-              
+
               // Map additional fields if they exist
               if (taskLower.due) mappedTask.due = taskLower.due;
               if (taskLower.project) mappedTask.project = taskLower.project;
-              
+
               // Handle TaskChampion project format which could be in the form "project": "name.subname"
               if (taskLower.project && typeof taskLower.project === 'string' && taskLower.project.includes('.')) {
                 // Split on dot and use the first part as the main project
                 const projectParts = taskLower.project.split('.');
                 mappedTask.project = projectParts[0];
-                
+
                 // Add tags for the subprojects
                 if (!mappedTask.tags) {
                   mappedTask.tags = [];
                 }
-                
+
                 // Add all parts as tags
                 for (const part of projectParts) {
                   if (!mappedTask.tags.includes(part)) {
@@ -548,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                 }
               }
-              
+
               // Handle tags - they might be stored in different formats
               if (taskLower.tags) {
                 try {
@@ -567,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   console.log("Error processing tags:", e);
                 }
               }
-              
+
               // Check for "tags_tag": "x" format that TaskChampion uses
               for (const key in taskLower) {
                 if (key.startsWith('tags_')) {
@@ -578,18 +563,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   } else if (!Array.isArray(mappedTask.tags)) {
                     mappedTask.tags = [mappedTask.tags];
                   }
-                  
+
                   if (!mappedTask.tags.includes(tagName)) {
                     mappedTask.tags.push(tagName);
                   }
-                  
+
                   // Check if it's a context tag (@context)
                   if (tagName.startsWith('@') && !mappedTask.annotations) {
                     mappedTask.annotations = [tagName];
                   }
                 }
               }
-              
+
               return mappedTask;
             });
           } catch (err) {
@@ -632,41 +617,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      
+
       // Check if this is a SQLite file by looking at the first few bytes (SQLite header)
       // SQLite files start with "SQLite format 3\0"
-      const isSqliteFile = req.file.buffer.length >= 16 && 
-                          (req.file.buffer.slice(0, 16).toString('utf8').includes('SQLite') || 
+      const isSqliteFile = req.file.buffer.length >= 16 &&
+                          (req.file.buffer.slice(0, 16).toString('utf8').includes('SQLite') ||
                            req.file.buffer.slice(0, 16).toString('binary').includes('SQLite') ||
                            req.file.originalname.toLowerCase().endsWith('.sqlite') ||
                            req.file.originalname.toLowerCase().endsWith('.sqlite3') ||
                            req.file.originalname.toLowerCase().endsWith('.db'));
-      
+
       console.log("File type detection:", isSqliteFile ? "SQLite database" : "Possibly JSON");
-      
+
       let taskwarriorTasks: any[] = [];
-      
+
       if (isSqliteFile) {
         taskwarriorTasks = readTasksFromSqlite(req.file.buffer);
         if (taskwarriorTasks.length === 0) {
-          return res.status(400).json({ 
-            message: "No tasks found in the SQLite database or not a valid TaskChampion database file" 
+          return res.status(400).json({
+            message: "No tasks found in the SQLite database or not a valid TaskChampion database file"
           });
         }
       } else {
         // Process as JSON
         const fileContent = req.file.buffer.toString();
         console.log("Raw file content:", fileContent.substring(0, 200) + "..."); // Log the first 200 chars
-        
+
         try {
           let parseSuccess = false;
-        
+
           // Approach 1: Try parsing as a single JSON object
           try {
             console.log("Trying to parse as single JSON object");
             const singleTask = JSON.parse(fileContent.trim());
             console.log("Single task parse result:", JSON.stringify(singleTask).substring(0, 100));
-            
+
             // If it's a single task as an object, put it in an array
             if (singleTask && typeof singleTask === 'object') {
               taskwarriorTasks = [singleTask];
@@ -675,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (err) {
             console.log("Single task parse failed:", err instanceof Error ? err.message : String(err));
-            
+
             // Approach 2: Try the original approach - one JSON object per line
             try {
               console.log("Trying to parse as multiple JSON objects per line");
@@ -688,7 +673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log("Multi-line parse failed:", err instanceof Error ? err.message : String(err));
             }
           }
-          
+
           // Approach 3: Try parsing the file as an array of tasks
           if (!parseSuccess) {
             try {
@@ -704,18 +689,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log("Array parse failed:", err instanceof Error ? err.message : String(err));
             }
           }
-          
+
           // Approach 4: Try to extract JSON objects from the text with regex
           if (!parseSuccess) {
             try {
               console.log("Trying to extract JSON objects with regex");
               const jsonRegex = /{[^}]*}/g;
               const matches = fileContent.match(jsonRegex);
-              
+
               if (matches && matches.length > 0) {
                 console.log(`Found ${matches.length} potential JSON objects with regex`);
                 const validTasks = [];
-                
+
                 for (const match of matches) {
                   try {
                     const task = JSON.parse(match);
@@ -726,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     // Skip invalid JSON
                   }
                 }
-                
+
                 if (validTasks.length > 0) {
                   taskwarriorTasks = validTasks;
                   parseSuccess = true;
@@ -737,18 +722,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log("Regex extraction failed:", err instanceof Error ? err.message : String(err));
             }
           }
-          
+
           // If we didn't get any tasks, it's an invalid format
           if (!parseSuccess || !taskwarriorTasks || taskwarriorTasks.length === 0) {
             throw new Error("No valid tasks found in the file");
           }
-          
+
           console.log(`Successfully parsed ${taskwarriorTasks.length} tasks`);
-          
+
         } catch (error) {
           console.error("TaskWarrior parse error:", error);
-          return res.status(400).json({ 
-            message: "Invalid TaskWarrior JSON format", 
+          return res.status(400).json({
+            message: "Invalid TaskWarrior JSON format",
             details: error instanceof Error ? error.message : "Unknown error"
           });
         }
@@ -761,7 +746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (taskwarriorTasks.length > 0) {
         console.log("First task properties:", Object.keys(taskwarriorTasks[0]));
       }
-      
+
       for (const twTask of taskwarriorTasks) {
         try {
           // Skip tasks that don't have a description
@@ -770,9 +755,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             skippedCount++;
             continue;
           }
-          
+
           console.log("Processing task:", twTask.description);
-          
+
           // Convert TaskWarrior task to our app's format
           let title = twTask.description || "Untitled Task";
           let context = null;
@@ -782,7 +767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Try to extract context, project, and tags from the description using GTD syntax
           // Format should be: Task +tag1 +tag2 @context pro:project due:YYYY-MM-DD
-          
+
           // Extract context from description if it contains @context
           const contextMatch = title.match(/@(\w+)/);
           if (contextMatch && contextMatch[1]) {
@@ -790,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Remove the @context from the title
             title = title.replace(contextMatch[0], '').trim();
           }
-          
+
           // Extract project from description if it contains pro:project
           const projectMatch = title.match(/\bpro:(\w+)/i);
           if (projectMatch && projectMatch[1]) {
@@ -798,7 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Remove the pro:project from the title
             title = title.replace(projectMatch[0], '').trim();
           }
-          
+
           // Extract tags from description if it contains +tag
           const tagMatches = title.match(/\+(\w+)/g);
           if (tagMatches && tagMatches.length > 0) {
@@ -808,7 +793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title = title.replace(tag, '').trim();
             });
           }
-          
+
           // Extract due date from description if it contains due:YYYY-MM-DD
           const dueDateMatch = title.match(/\bdue:(\d{4}-\d{2}-\d{2})/i);
           if (dueDateMatch && dueDateMatch[1]) {
@@ -816,33 +801,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Remove the due:YYYY-MM-DD from the title
             title = title.replace(dueDateMatch[0], '').trim();
           }
-          
+
           const insertTask: any = {
             // Required fields
             title: title,
-            completed: twTask.status === "completed" || twTask.status === "done" || twTask.status === "deleted" || 
+            completed: twTask.status === "completed" || twTask.status === "done" || twTask.status === "deleted" ||
                       twTask.end !== undefined || twTask.status === "completed",
             notes: "",
-            
+
             // Optional fields
             tags: tags,
             project: project,
             context: context,
             dueDate: dueDate
           };
-          
+
           // Convert tags array to string tags in our format
           if (twTask.tags) {
             console.log("Raw tags from TaskWarrior task:", twTask.tags);
             insertTask.tags = Array.isArray(twTask.tags) ? twTask.tags : [String(twTask.tags)];
             console.log("Processed tags:", insertTask.tags);
           }
-          
+
           // Map TaskWarrior project to our project
           if (twTask.project) {
             insertTask.project = twTask.project;
           }
-          
+
           // Try to extract context from various places
           // From annotations - checking both string and array formats
           if (twTask.annotations) {
@@ -852,7 +837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (contextMatch && contextMatch[1]) {
                 insertTask.context = contextMatch[1];
               }
-            } 
+            }
             // Handle annotations as an array of objects (TaskChampion format)
             else if (Array.isArray(twTask.annotations)) {
               // Loop through annotation objects and check their values
@@ -863,7 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     insertTask.context = contextMatch[1];
                     break;
                   }
-                  
+
                   // Also check for the +@context format
                   const plusContextMatch = annotation.value.match(/\+@(\w+)/);
                   if (plusContextMatch && plusContextMatch[1]) {
@@ -874,7 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           }
-          
+
           // Or from tags that look like @context
           if (!insertTask.context && Array.isArray(insertTask.tags)) {
             for (const tag of insertTask.tags) {
@@ -899,18 +884,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Build notes with all metadata
           let notes = "";
-          
+
           // Store original TaskWarrior ID or UUID in notes for reference
           if (twTask.uuid) {
             notes += `TaskWarrior ID: ${twTask.uuid}\n`;
           } else if (twTask.id !== undefined) {
             notes += `TaskWarrior ID: ${twTask.id}\n`;
           }
-          
+
           if (twTask.priority) {
             notes += `Priority: ${twTask.priority}\n`;
           }
-          
+
           // Add any other metadata
           const metadataFields = ['entry', 'modified', 'imask', 'parent'];
           for (const field of metadataFields) {
@@ -918,18 +903,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               notes += `${field}: ${twTask[field]}\n`;
             }
           }
-          
+
           // Handle TaskChampion annotation fields
           for (const key in twTask) {
             if (key.startsWith('annotation_') && twTask[key]) {
               notes += `${twTask[key]}\n\n`;
             }
           }
-          
+
           insertTask.notes = notes;
 
           console.log("Parsed insert task:", JSON.stringify(insertTask));
-          
+
           // Look for tags with special format like "tags_@home": "x"
           // These are a common format in TaskWarrior exports
           for (const key in twTask) {
@@ -939,23 +924,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!insertTask.tags.includes(tagName)) {
                 insertTask.tags.push(tagName);
               }
-              
+
               // If it's a context tag (starts with @), also set it as a context
               if (tagName.startsWith('@') && !insertTask.context) {
                 insertTask.context = tagName.substring(1);
               }
             }
           }
-          
+
           // Validate and create the task
           console.log("Raw insert task before validation:", insertTask);
-          
+
           try {
             // Ensure tags is an array of strings
             if (insertTask.tags && !Array.isArray(insertTask.tags)) {
               insertTask.tags = [];
             }
-            
+
             // Direct DB insertion bypassing Zod validation since we know the structure
             try {
               // Create a clean task object matching our schema exactly
@@ -973,11 +958,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return insertTask.tags.map((tag: any) => String(tag || '')).filter((tag: string) => tag.length > 0);
                 })()
               };
-              
+
               console.log("Formatted task data:", taskData);
-              
+
               console.log("About to call storage.createTask with:", JSON.stringify(taskData, null, 2));
-              
+
               // Insert directly using the storage interface
               try {
                 const newTask = await storage.createTask(taskData);
@@ -989,7 +974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             } catch (error) {
               console.log("Storage insertion error:", error);
-              
+
               // Last fallback - try with just the minimal required fields
               try {
                 const minimalTask = {
@@ -998,7 +983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   notes: String(insertTask.notes || ""),
                   tags: []
                 };
-                
+
                 console.log("Using minimal fallback task:", minimalTask);
                 const newTask = await storage.createTask(minimalTask);
                 importedTasks.push(newTask);
@@ -1031,7 +1016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/taskwarrior/export", async (req, res) => {
     try {
       const tasks = await storage.getTasks();
-      
+
       const taskwarriorTasks = tasks.map(task => {
         // Generate a UUID if not already present in notes
         let uuid = '';
@@ -1045,10 +1030,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Current timestamp in TaskWarrior format
         const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-        
+
         // Build a description that includes GTD syntax
         let description = task.title;
-        
+
         // Add context, project, tags, and due date to the description in GTD syntax
         // Format: "Task +tag +@context pro:project due:YYYY-MM-DD"
         if (task.tags && task.tags.length > 0) {
@@ -1056,19 +1041,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description += ` +${tag}`;
           });
         }
-        
+
         if (task.context) {
           description += ` +@${task.context}`;
         }
-        
+
         if (task.project) {
           description += ` pro:${task.project}`;
         }
-        
+
         if (task.dueDate) {
           description += ` due:${task.dueDate}`;
         }
-        
+
         const twTask: any = {
           uuid,
           description: description,
@@ -1076,7 +1061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entry: now,
           modified: now
         };
-        
+
         // Add context as annotation and as a separate field if present
         if (task.context) {
           twTask.annotations = [`+@${task.context}`];
@@ -1111,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // TaskWarrior format is one JSON object per line
       const output = taskwarriorTasks.map(task => JSON.stringify(task)).join('\n');
-      
+
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', 'attachment; filename="taskwarrior-export.json"');
       res.send(output);
