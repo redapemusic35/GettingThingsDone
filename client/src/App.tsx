@@ -25,20 +25,8 @@ function Router() {
         <Route path="/taskwarrior" component={TaskWarrior} />
         <Route component={NotFound} />
       </Switch>
-      return (
-  <Layout>
-    <Switch>
-      <Route path="/" exact component={Home} />
-      <Route path="/calendar" component={Calendar} />
-      <Route path="/archive" component={Archive} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/taskwarrior" component={TaskWarrior} />
-      <Route component={NotFound} />
-    </Switch>
-    {/* Footer goes OUTSIDE Switch, inside Layout */}
+{/* Footer goes OUTSIDE Switch, inside Layout */}
     <Footer />
-  </Layout>
-);
     </Layout>
   );
 }
