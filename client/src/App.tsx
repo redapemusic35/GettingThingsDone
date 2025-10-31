@@ -10,7 +10,6 @@ import Projects from "@/pages/Projects";
 import TaskWarrior from "@/pages/TaskWarrior";
 import Layout from "@/components/Layout";
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Footer from "@/components/ui/Footer";  // ← Correct path
 
 function Router() {
@@ -24,7 +23,7 @@ function Router() {
         <Route path="/taskwarrior" component={TaskWarrior} />
         <Route component={NotFound} />
       </Switch>
-    <Footer />
+     <Footer />
     </Layout>
   );
 }
