@@ -1,1 +1,16 @@
 
+.app-footer {
+  margin-top: 3rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+  border-top: 1px solid #eee;
+  background-color: #fafafa;
+}
+
+.heart { color: #e25555; }
+
+.kofi-button img {
+  vertical-align: middle;
+}
