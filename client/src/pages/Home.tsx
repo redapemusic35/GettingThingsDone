@@ -16,13 +16,13 @@ export default function Home() {
   const [selectedContext, setSelectedContext] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
-  
+
   // Get all tasks, filtered by context or tag
   const tasksQuery = useQuery<Task[]>({
-    queryKey: selectedTag 
+    queryKey: selectedTag
       ? [`/api/tasks/tag/${selectedTag}`]
-      : selectedContext 
-        ? [`/api/tasks/context/${selectedContext}`] 
+      : selectedContext
+        ? [`/api/tasks/context/${selectedContext}`]
         : ['/api/tasks/active'],
   });
 
@@ -31,24 +31,24 @@ export default function Home() {
     queryKey: ['/api/tasks'],
   });
 
-  const contexts = allTasksQuery.data 
+  const contexts = allTasksQuery.data
     ? Array.from(new Set(allTasksQuery.data
         .map(task => task.context)
         .filter(context => context !== undefined && context !== null) as string[]))
     : [];
 
-  const tags = allTasksQuery.data 
+  const tags = allTasksQuery.data
     ? Array.from(new Set(allTasksQuery.data
         .flatMap(task => task.tags || [])
         .filter(tag => tag !== undefined && tag !== null)))
     : [];
-  
+
   const handleContextSelect = (context: string | null) => {
     setSelectedContext(context);
     // Reset tag filter when context changes
     if (selectedTag) setSelectedTag(null);
   };
-  
+
   const handleTagSelect = (tag: string | null) => {
     setSelectedTag(tag);
     // Reset context filter when tag changes
@@ -85,45 +85,45 @@ export default function Home() {
       variant: "destructive",
     });
   }
-  
+
   return (
     <>
       <TaskList tasks={tasksQuery.data || []} />
-      
-      <ContextFilter 
+
+      <ContextFilter
         contexts={contexts}
         selectedContext={selectedContext}
         onSelectContext={handleContextSelect}
       />
-      
+
       <TagFilter
         tags={tags}
         selectedTag={selectedTag}
         onSelectTag={handleTagSelect}
       />
-      
+
       <div className="fixed right-4 bottom-40 z-20">
-        <Button 
-          size="icon" 
+        <Button
+          size="icon"
           className="h-14 w-14 rounded-full shadow-lg"
           onClick={() => setIsNewTaskModalOpen(true)}
         >
           <PlusIcon className="h-6 w-6" />
         </Button>
       </div>
-      
+
       <NewTaskModal
         isOpen={isNewTaskModalOpen}
         onClose={() => setIsNewTaskModalOpen(false)}
         onTaskAdded={() => {
           queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
           queryClient.invalidateQueries({ queryKey: ['/api/tasks/active'] });
-          
+
           // Invalidate context-specific queries
           if (selectedContext) {
             queryClient.invalidateQueries({ queryKey: [`/api/tasks/context/${selectedContext}`] });
           }
-          
+
           // Invalidate tag-specific queries
           if (selectedTag) {
             queryClient.invalidateQueries({ queryKey: [`/api/tasks/tag/${selectedTag}`] });
