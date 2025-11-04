@@ -75,6 +75,10 @@ export async function addTask(task: Omit<Task, "id" | "uid" | "createdAt">) {
   });
 }
 
+export async function completeTask(id: string) {
+  await updateDoc(doc(db, "tasks", id), { status: "completed" });
+}
+
 // Helper: Update a task
 export async function updateTask(id: string, updates: Partial<Task>) {
   if (!auth.currentUser) throw new Error("Not logged in");
