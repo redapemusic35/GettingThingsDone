@@ -24,6 +24,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      "react-native": "react-native-web",
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared"),
       "@assets": path.resolve(__dirname, "attached_assets"),
