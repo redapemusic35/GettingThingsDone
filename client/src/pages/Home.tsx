@@ -1,6 +1,7 @@
 // client/src/pages/Home.tsx
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useFirestoreTasks } from "@/hooks/useFirestoreTasks";
 import TaskList from "@/components/TaskList";
 import ContextFilter from "@/components/ContextFilter";
 import TagFilter from "@/components/TagFilter";
@@ -18,16 +19,15 @@ export default function Home() {
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
   // ────── MAIN TASK LIST (filtered) ──────
-  const {
-    tasks: filteredTasks,
-    loading: filteredLoading,
-  } = useFirestoreTasks(
-    selectedTag ? "tag" : selectedContext ? "context" : "active",
-    selectedTag || selectedContext || undefined
-  );
+  const { tasks: filteredTasks, loading: filteredLoading } = useFirestoreTasks(
+  selectedTag ? "tag" : selectedContext ? "context" : "active",
+  selectedTag || selectedContext || undefined
+);
 
   // ────── ALL TASKS (for filter dropdowns) ──────
   const { tasks: allTasks, loading: allLoading } = useFirestoreTasks();
+  const { tasks, loading } = useFirestoreTasks("active");
+  console.log("Active tasks:", tasks); // ← MUST show tasks
 
   // ────── FILTER VALUES ──────
   const contexts = allTasks

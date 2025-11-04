@@ -1,5 +1,5 @@
+// client/src/components/NewTaskModal.tsx
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -7,13 +7,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { parseTaskSyntax } from "@/lib/taskParser";
-import { apiRequest } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
+import { X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { addTask } from "@/hooks/useFirestoreTasks";
+import { Task } from "@shared/schema";
 
 interface NewTaskModalProps {
   isOpen: boolean;
@@ -21,97 +23,181 @@ interface NewTaskModalProps {
   onTaskAdded: () => void;
 }
 
-export default function NewTaskModal({ 
-  isOpen, 
+export default function NewTaskModal({
+  isOpen,
   onClose,
-  onTaskAdded
+  onTaskAdded,
 }: NewTaskModalProps) {
   const { toast } = useToast();
-  const [taskInput, setTaskInput] = useState("");
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [context, setContext] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState<string>(""); // ISO string
+  const [loading, setLoading] = useState(false);
+
+  const handleAddTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
+
   const handleSubmit = async () => {
-    if (isSubmitting || !taskInput.trim()) return;
-    
+    if (!title.trim()) {
+      toast({ title: "Error", description: "Title is required.", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
     try {
-      setIsSubmitting(true);
-      
-      // Parse the input using the GTD syntax parser
-      const parsedTask = parseTaskSyntax(taskInput.trim());
-      
-      // Create the new task
-      await apiRequest('POST', '/api/tasks', {
-        ...parsedTask,
-        notes: notes.trim(),
-        completed: false,
+      await addTask({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        context: context.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        status: "active",
+        dueDate: dueDate || undefined,
       });
-      
-      toast({
-        title: "Task created",
-        description: "Your new task has been added.",
-      });
-      
-      // Reset the form
-      setTaskInput("");
-      setNotes("");
-      
-      // Close the modal and notify parent
+
+      toast({ title: "Success", description: "Task added!" });
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setContext("");
+      setTags([]);
+      setTagInput("");
+      setDueDate("");
       onClose();
       onTaskAdded();
-    } catch (error) {
+    } catch (e: any) {
       toast({
         title: "Error",
-        description: "Failed to create the task.",
+        description: e.message || "Failed to add task.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
-  
+
+  const handleClose = () => {
+    if (!loading) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
-        
-        <div className="mt-4">
-          <div className="mb-4">
-            <Label htmlFor="new-task-input">Task Description with GTD Syntax</Label>
-            <Input 
-              id="new-task-input" 
-              value={taskInput} 
-              onChange={(e) => setTaskInput(e.target.value)} 
-              placeholder="Task description +@context +tag pro:project due:YYYY-MM-DD"
-              className="mt-1"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Example: "Buy groceries +@home +shopping pro:household due:2023-05-10"
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              <strong>Syntax guide:</strong> +@context (where to do it), +tag (category), pro:project (group of related tasks), due:YYYY-MM-DD (deadline)
-            </p>
-          </div>
-          
+
+        <div className="space-y-4 py-4">
+          {/* Title */}
           <div>
-            <Label htmlFor="new-task-notes">Notes (optional)</Label>
-            <Textarea 
-              id="new-task-notes" 
-              rows={4} 
-              value={notes} 
-              onChange={(e) => setNotes(e.target.value)} 
-              placeholder="Add notes here..."
-              className="mt-1"
+            <Label htmlFor="title">Title *</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Buy groceries"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional details..."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
+
+          {/* Context */}
+          <div>
+            <Label htmlFor="context">Context</Label>
+            <Input
+              id="context"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="@home, @work"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <Label>Tags</Label>
+            <div className="flex gap-2">
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Add tag..."
+                disabled={loading}
+              />
+              <Button
+                type="button"
+                size="icon"
+                onClick={handleAddTag}
+                disabled={loading || !tagInput.trim()}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 hover:text-red-500"
+                    disabled={loading}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Due Date */}
+          <div>
+            <Label htmlFor="dueDate">Due Date</Label>
+            <Input
+              id="dueDate"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              disabled={loading}
             />
           </div>
         </div>
-        
+
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !taskInput.trim()}>
-            {isSubmitting ? "Adding..." : "Add Task"}
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? "Adding..." : "Add Task"}
           </Button>
         </DialogFooter>
       </DialogContent>
