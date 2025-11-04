@@ -15,6 +15,7 @@ import Footer from "./client/src/components/ui/Footer";  // ← Correct path
 // NEW: Import Auth + Login
 import { useAuth } from "./client/src/hooks/useAuth";
 import LoginScreen from "./client/src/pages/LoginScreen";
+import Router from "./client/src/AppWrapper";
 
 function Router() {
   return (

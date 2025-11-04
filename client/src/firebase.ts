@@ -25,4 +25,4 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 // Initialize Firebase
 
-console.log('Firebase initialized in client/src');
+console.log("Firebase initialized – project:", firebaseConfig.projectId);
