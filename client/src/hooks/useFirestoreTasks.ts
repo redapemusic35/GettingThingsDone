@@ -11,6 +11,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { Task } from "@shared/schema";
@@ -24,6 +25,7 @@ export function useFirestoreTasks(
 
   useEffect(() => {
     if (!auth.currentUser) {
+      console.log("No user logged in → returning empty tasks");
       setTasks([]);
       setLoading(false);
       return;
@@ -43,13 +45,19 @@ export function useFirestoreTasks(
       q = query(q, where("tags", "array-contains", value));
     }
 
+    console.log("Firestore query:", { filter, value, uid: auth.currentUser.uid });
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const list = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Task[];
+        const list = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+          } as Task;
+        });
+        console.log("Firestore tasks loaded:", list);
         setTasks(list);
         setLoading(false);
       },
@@ -59,34 +67,39 @@ export function useFirestoreTasks(
       }
     );
 
-    return unsubscribe;
+    return () => {
+      console.log("Unsubscribing from Firestore");
+      unsubscribe();
+    };
   }, [filter, value]);
 
   return { tasks, loading };
 }
 
-// Helper: Add a task
-export async function addTask(task: Omit<Task, "id" | "uid" | "createdAt">) {
+// ────── ADD TASK ──────
+export async function addTask(
+  data: Omit<Task, "id" | "uid" | "createdAt">
+): Promise<string> {
   if (!auth.currentUser) throw new Error("Not logged in");
-  return await addDoc(collection(db, "tasks"), {
-    ...task,
+
+  const docRef = await addDoc(collection(db, "tasks"), {
+    ...data,
     uid: auth.currentUser.uid,
     createdAt: serverTimestamp(),
   });
+
+  console.log("Task added with ID:", docRef.id);
+  return docRef.id;
 }
 
-export async function completeTask(id: string) {
+// ────── COMPLETE TASK ──────
+export async function completeTask(id: string): Promise<void> {
   await updateDoc(doc(db, "tasks", id), { status: "completed" });
+  console.log("Task completed:", id);
 }
 
-// Helper: Update a task
-export async function updateTask(id: string, updates: Partial<Task>) {
-  if (!auth.currentUser) throw new Error("Not logged in");
-  return await updateDoc(doc(db, "tasks", id), updates);
-}
-
-// Helper: Delete a task
-export async function deleteTask(id: string) {
-  if (!auth.currentUser) throw new Error("Not logged in");
-  return await deleteDoc(doc(db, "tasks", id));
+// ────── DELETE TASK (optional) ──────
+export async function deleteTask(id: string): Promise<void> {
+  await deleteDoc(doc(db, "tasks", id));
+  console.log("Task deleted:", id);
 }
