@@ -1,7 +1,6 @@
 // client/src/pages/Home.tsx
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestoreTasks } from "@/hooks/useFirestoreTasks";
 import TaskList from "@/components/TaskList";
 import ContextFilter from "@/components/ContextFilter";
 import TagFilter from "@/components/TagFilter";
@@ -9,7 +8,7 @@ import NewTaskModal from "@/components/NewTaskModal";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFirestoreTasks, addTask } from "@/hooks/useFirestoreTasks";
+import { useFirestoreTasks } from "@/hooks/useFirestoreTasks";
 import { Task } from "@shared/schema";
 
 export default function Home() {
@@ -19,15 +18,16 @@ export default function Home() {
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
   // ────── MAIN TASK LIST (filtered) ──────
-  const { tasks: filteredTasks, loading: filteredLoading } = useFirestoreTasks(
-  selectedTag ? "tag" : selectedContext ? "context" : "active",
-  selectedTag || selectedContext || undefined
-);
+  const {
+    tasks: filteredTasks,
+    loading: filteredLoading,
+  } = useFirestoreTasks(
+    selectedTag ? "tag" : selectedContext ? "context" : "active",
+    selectedTag || selectedContext || undefined
+  );
 
   // ────── ALL TASKS (for filter dropdowns) ──────
   const { tasks: allTasks, loading: allLoading } = useFirestoreTasks();
-  const { tasks, loading } = useFirestoreTasks("active");
-  console.log("Active tasks:", tasks); // ← MUST show tasks
 
   // ────── FILTER VALUES ──────
   const contexts = allTasks
@@ -87,9 +87,6 @@ export default function Home() {
     );
   }
 
-  // ────── ERROR (optional) ──────
-  // Firestore errors are logged to console; you can surface them with toast if you want
-
   return (
     <>
       {/* TASK LIST */}
@@ -118,21 +115,13 @@ export default function Home() {
         </Button>
       </div>
 
-      {/* MODAL – now writes to Firestore */}
+      {/* MODAL */}
       <NewTaskModal
         isOpen={isNewTaskModalOpen}
         onClose={() => setIsNewTaskModalOpen(false)}
-        onTaskAdded={async (data) => {
-          try {
-            await addTask(data);
-            toast({ title: "Success", description: "Task added!" });
-          } catch (e: any) {
-            toast({
-              title: "Error",
-              description: e.message,
-              variant: "destructive",
-            });
-          }
+        onTaskAdded={() => {
+          // Firestore updates in real time — no need to refetch
+          toast({ title: "Success", description: "Task added!" });
         }}
       />
     </>
