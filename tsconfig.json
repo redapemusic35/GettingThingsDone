@@ -40,5 +40,16 @@
       ]
     }
   },
-  "extends": "expo/tsconfig.base"
+  "extends": "./client/tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./client/src/*"]
+    }
+  },
+  "include": [
+    "client/src",
+    "App.tsx"
+  ]
 }
