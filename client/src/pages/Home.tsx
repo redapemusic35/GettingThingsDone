@@ -1,6 +1,5 @@
+// client/src/pages/Home.tsx
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Task } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import TaskList from "@/components/TaskList";
 import ContextFilter from "@/components/ContextFilter";
@@ -9,57 +8,67 @@ import NewTaskModal from "@/components/NewTaskModal";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFirestoreTasks, addTask } from "@/hooks/useFirestoreTasks";
+import { Task } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [selectedContext, setSelectedContext] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
-  // Get all tasks, filtered by context or tag
-  const tasksQuery = useQuery<Task[]>({
-    queryKey: selectedTag
-      ? [`/api/tasks/tag/${selectedTag}`]
-      : selectedContext
-        ? [`/api/tasks/context/${selectedContext}`]
-        : ['/api/tasks/active'],
-  });
+  // ────── MAIN TASK LIST (filtered) ──────
+  const {
+    tasks: filteredTasks,
+    loading: filteredLoading,
+  } = useFirestoreTasks(
+    selectedTag ? "tag" : selectedContext ? "context" : "active",
+    selectedTag || selectedContext || undefined
+  );
 
-  // Get all unique contexts and tags for the filters
-  const allTasksQuery = useQuery<Task[]>({
-    queryKey: ['/api/tasks'],
-  });
+  // ────── ALL TASKS (for filter dropdowns) ──────
+  const { tasks: allTasks, loading: allLoading } = useFirestoreTasks();
 
-  const contexts = allTasksQuery.data
-    ? Array.from(new Set(allTasksQuery.data
-        .map(task => task.context)
-        .filter(context => context !== undefined && context !== null) as string[]))
+  // ────── FILTER VALUES ──────
+  const contexts = allTasks
+    ? Array.from(
+        new Set(
+          allTasks
+            .map((t) => t.context)
+            .filter((c): c is string => c !== null && c !== undefined)
+        )
+      )
     : [];
 
-  const tags = allTasksQuery.data
-    ? Array.from(new Set(allTasksQuery.data
-        .flatMap(task => task.tags || [])
-        .filter(tag => tag !== undefined && tag !== null)))
+  const tags = allTasks
+    ? Array.from(
+        new Set(
+          allTasks
+            .flatMap((t) => t.tags || [])
+            .filter((tag): tag is string => tag !== null && tag !== undefined)
+        )
+      )
     : [];
 
+  // ────── FILTER HANDLERS ──────
   const handleContextSelect = (context: string | null) => {
     setSelectedContext(context);
-    // Reset tag filter when context changes
     if (selectedTag) setSelectedTag(null);
   };
-
   const handleTagSelect = (tag: string | null) => {
     setSelectedTag(tag);
-    // Reset context filter when tag changes
     if (selectedContext) setSelectedContext(null);
   };
 
-  if (tasksQuery.isLoading) {
+  // ────── LOADING SKELETON ──────
+  if (filteredLoading || allLoading) {
     return (
       <div className="space-y-3">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div
+            key={i}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+          >
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-3 w-full">
                 <Skeleton className="h-5 w-5 rounded-full" />
@@ -78,30 +87,27 @@ export default function Home() {
     );
   }
 
-  if (tasksQuery.isError) {
-    toast({
-      title: "Error",
-      description: "Failed to load tasks. Please try again.",
-      variant: "destructive",
-    });
-  }
+  // ────── ERROR (optional) ──────
+  // Firestore errors are logged to console; you can surface them with toast if you want
 
   return (
     <>
-      <TaskList tasks={tasksQuery.data || []} />
+      {/* TASK LIST */}
+      <TaskList tasks={filteredTasks} />
 
+      {/* FILTERS */}
       <ContextFilter
         contexts={contexts}
         selectedContext={selectedContext}
         onSelectContext={handleContextSelect}
       />
-
       <TagFilter
         tags={tags}
         selectedTag={selectedTag}
         onSelectTag={handleTagSelect}
       />
 
+      {/* FAB */}
       <div className="fixed right-4 bottom-40 z-20">
         <Button
           size="icon"
@@ -112,21 +118,20 @@ export default function Home() {
         </Button>
       </div>
 
+      {/* MODAL – now writes to Firestore */}
       <NewTaskModal
         isOpen={isNewTaskModalOpen}
         onClose={() => setIsNewTaskModalOpen(false)}
-        onTaskAdded={() => {
-          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-          queryClient.invalidateQueries({ queryKey: ['/api/tasks/active'] });
-
-          // Invalidate context-specific queries
-          if (selectedContext) {
-            queryClient.invalidateQueries({ queryKey: [`/api/tasks/context/${selectedContext}`] });
-          }
-
-          // Invalidate tag-specific queries
-          if (selectedTag) {
-            queryClient.invalidateQueries({ queryKey: [`/api/tasks/tag/${selectedTag}`] });
+        onTaskAdded={async (data) => {
+          try {
+            await addTask(data);
+            toast({ title: "Success", description: "Task added!" });
+          } catch (e: any) {
+            toast({
+              title: "Error",
+              description: e.message,
+              variant: "destructive",
+            });
           }
         }}
       />
