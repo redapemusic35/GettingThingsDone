@@ -1,10 +1,11 @@
 // client/src/hooks/useFirestoreTasks.ts
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   collection,
   query,
   where,
   getDocs,
+  onSnapshot,
   orderBy,
   addDoc,
   serverTimestamp,
@@ -19,15 +20,16 @@ type Filter = "active" | "context" | "tag" | "project" | "archive";
 export function useFirestoreTasks(filter?: Filter, value?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const fetch = async () => {
-    console.log("Fetching tasks for UID:", auth.currentUser?.uid || "none");
+  const fetchAndListen = async () => {
     if (!auth.currentUser) {
       setTasks([]);
       setLoading(false);
       return;
     }
 
+    // --- 1. FETCH ONCE ---
     let q = query(
       collection(db, "tasks"),
       where("uid", "==", auth.currentUser.uid),
@@ -42,25 +44,49 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
 
     try {
       const snap = await getDocs(q);
-      const list = snap.docs.map((d) => {
-        const data = d.data();
-        console.log("Fetched task:", { id: d.id, title: data.title, status: data.status });
-        return { id: d.id, ...data } as Task;
-      });
-      console.log("Total fetched:", list.length);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
+      console.log("Initial fetch →", list.length, "tasks");
       setTasks(list);
-    } catch (e: any) {
-      console.error("Fetch failed:", e.message);
-    } finally {
+      setLoading(false);
+    } catch (e) {
+      console.error("Fetch failed:", e);
       setLoading(false);
     }
+
+    // --- 2. LIVE LISTENER ---
+    if (unsubRef.current) unsubRef.current();
+
+    const liveQ = q; // reuse same query
+    const unsub = onSnapshot(
+      liveQ,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
+        console.log("Live update →", list.length, "tasks");
+        setTasks(list);
+      },
+      (err) => console.error("Live sync error:", err)
+    );
+
+    unsubRef.current = unsub;
   };
 
   useEffect(() => {
-    fetch();
+    fetchAndListen();
+
+    return () => {
+      if (unsubRef.current) {
+        console.log("Unsubscribing from live sync");
+        unsubRef.current();
+      }
+    };
   }, [filter, value, auth.currentUser?.uid]);
 
-  return { tasks, loading, refetch: fetch };
+  const refetch = () => {
+    console.log("Manual refetch");
+    fetchAndListen();
+  };
+
+  return { tasks, loading, refetch };
 }
 
 // ADD TASK

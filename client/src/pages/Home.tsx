@@ -12,7 +12,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header with Refresh */}
+      {/* Header */}
       <div className="flex justify-between items-center p-4 border-b">
         <h1 className="text-xl font-bold">Home</h1>
         <Button size="icon" variant="ghost" onClick={refetch} disabled={loading}>
@@ -45,7 +45,7 @@ export default function Home() {
       <NewTaskModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onTaskAdded={refetch}
+        onTaskAdded={() => setModalOpen(false)}
       />
     </div>
   );
