@@ -21,6 +21,7 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
   const [loading, setLoading] = useState(true);
 
   const fetch = async () => {
+    console.log("Fetching tasks for UID:", auth.currentUser?.uid || "none");
     if (!auth.currentUser) {
       setTasks([]);
       setLoading(false);
@@ -41,11 +42,15 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
 
     try {
       const snap = await getDocs(q);
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-      console.log("Fetched", list.length, "tasks");
+      const list = snap.docs.map((d) => {
+        const data = d.data();
+        console.log("Fetched task:", { id: d.id, title: data.title, status: data.status });
+        return { id: d.id, ...data } as Task;
+      });
+      console.log("Total fetched:", list.length);
       setTasks(list);
-    } catch (e) {
-      console.error("Fetch failed:", e);
+    } catch (e: any) {
+      console.error("Fetch failed:", e.message);
     } finally {
       setLoading(false);
     }
@@ -63,7 +68,7 @@ export async function addTask(data: Omit<Task, "id" | "uid" | "createdAt">) {
   if (!auth.currentUser) throw new Error("Not logged in");
   const payload = { ...data, uid: auth.currentUser.uid, createdAt: serverTimestamp() };
   const ref = await addDoc(collection(db, "tasks"), payload);
-  console.log("Added task →", ref.id);
+  console.log("Task added →", ref.id);
   return ref.id;
 }
 
