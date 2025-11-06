@@ -5,15 +5,13 @@ import TaskList from "@/components/TaskList";
 export default function Archive() {
   const { tasks, loading } = useFirestoreTasks("archive");
 
+  if (loading) return <p className="p-4 text-center text-gray-500">Loading...</p>;
+  if (tasks.length === 0)
+    return <p className="p-4 text-center text-gray-500">No completed tasks</p>;
+
   return (
     <div className="p-4">
-      {loading ? (
-        <div>Loading...</div>
-      ) : tasks.length === 0 ? (
-        <div className="text-center text-gray-500 py-8">No completed tasks</div>
-      ) : (
-        <TaskList tasks={tasks} />
-      )}
+      <TaskList tasks={tasks} />
     </div>
   );
 }
