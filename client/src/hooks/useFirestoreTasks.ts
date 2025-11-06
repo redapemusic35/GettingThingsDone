@@ -1,10 +1,10 @@
 // client/src/hooks/useFirestoreTasks.ts
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   collection,
   query,
   where,
-  onSnapshot,
+  getDocs,
   orderBy,
   addDoc,
   serverTimestamp,
@@ -19,24 +19,11 @@ type Filter = "active" | "context" | "tag" | "project" | "archive";
 export function useFirestoreTasks(filter?: Filter, value?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const unsubRef = useRef<(() => void) | null>(null);
-  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    setLoading(true);
-
-    // Clean up old listener
-    if (unsubRef.current) {
-      unsubRef.current();
-      unsubRef.current = null;
-    }
-
+  const fetch = async () => {
     if (!auth.currentUser) {
-      if (mountedRef.current) {
-        setTasks([]);
-        setLoading(false);
-      }
+      setTasks([]);
+      setLoading(false);
       return;
     }
 
@@ -52,29 +39,23 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
     else if (filter === "project" && value) q = query(q, where("project", "==", value));
     else if (filter === "archive") q = query(q, where("status", "==", "completed"));
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        if (!mountedRef.current) return;
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-        setTasks(list);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Firestore error:", err);
-        if (mountedRef.current) setLoading(false);
-      }
-    );
+    try {
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
+      console.log("Fetched", list.length, "tasks");
+      setTasks(list);
+    } catch (e) {
+      console.error("Fetch failed:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    unsubRef.current = unsub;
-
-    return () => {
-      mountedRef.current = false;
-      if (unsubRef.current) unsubRef.current();
-    };
+  useEffect(() => {
+    fetch();
   }, [filter, value, auth.currentUser?.uid]);
 
-  return { tasks, loading };
+  return { tasks, loading, refetch: fetch };
 }
 
 // ADD TASK
@@ -82,6 +63,7 @@ export async function addTask(data: Omit<Task, "id" | "uid" | "createdAt">) {
   if (!auth.currentUser) throw new Error("Not logged in");
   const payload = { ...data, uid: auth.currentUser.uid, createdAt: serverTimestamp() };
   const ref = await addDoc(collection(db, "tasks"), payload);
+  console.log("Added task →", ref.id);
   return ref.id;
 }
 

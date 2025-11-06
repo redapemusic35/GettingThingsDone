@@ -4,14 +4,21 @@ import { useFirestoreTasks } from "@/hooks/useFirestoreTasks";
 import TaskList from "@/components/TaskList";
 import NewTaskModal from "@/components/NewTaskModal";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 
 export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
-  const { tasks, loading } = useFirestoreTasks("active");
+  const { tasks, loading, refetch } = useFirestoreTasks("active");
 
   return (
     <>
+      {/* Refresh button */}
+      <div className="flex justify-end p-4">
+        <Button size="icon" variant="ghost" onClick={refetch} disabled={loading}>
+          <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+
       {loading ? (
         <div className="p-8 text-center text-gray-500">Loading tasks...</div>
       ) : tasks.length === 0 ? (
@@ -20,6 +27,7 @@ export default function Home() {
         <TaskList tasks={tasks} />
       )}
 
+      {/* FAB */}
       <div className="fixed right-6 bottom-6 z-50">
         <Button
           size="icon"
@@ -33,7 +41,7 @@ export default function Home() {
       <NewTaskModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onTaskAdded={() => setModalOpen(false)}
+        onTaskAdded={refetch}
       />
     </>
   );
