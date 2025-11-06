@@ -10,12 +10,8 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
-  deleteDoc,
-  Timestamp,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
-// client/src/hooks/useFirestoreTasks.ts
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Task } from "@shared/schema";
 
 export function useFirestoreTasks(
@@ -27,7 +23,7 @@ export function useFirestoreTasks(
 
   useEffect(() => {
     if (!auth.currentUser) {
-      console.log("No user logged in → returning empty tasks");
+      console.log("No user → empty tasks");
       setTasks([]);
       setLoading(false);
       return;
@@ -47,19 +43,13 @@ export function useFirestoreTasks(
       q = query(q, where("tags", "array-contains", value));
     }
 
-    console.log("Firestore query:", { filter, value, uid: auth.currentUser.uid });
+    console.log("Query →", { filter, value, uid: auth.currentUser.uid });
 
-    const unsubscribe = onSnapshot(
+    const unsub = onSnapshot(
       q,
-      (snapshot) => {
-        const list = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-          } as Task;
-        });
-        console.log("Firestore tasks loaded:", list);
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
+        console.log("Snapshot →", list);
         setTasks(list);
         setLoading(false);
       },
@@ -69,17 +59,13 @@ export function useFirestoreTasks(
       }
     );
 
-    return () => {
-      console.log("Unsubscribing from Firestore");
-      unsubscribe();
-    };
+    return () => unsub();
   }, [filter, value]);
 
   return { tasks, loading };
 }
 
 // ────── ADD TASK ──────
-// client/src/hooks/useFirestoreTasks.ts
 export async function addTask(
   data: Omit<Task, "id" | "uid" | "createdAt">
 ): Promise<string> {
@@ -90,22 +76,15 @@ export async function addTask(
     uid: auth.currentUser.uid,
     createdAt: serverTimestamp(),
   };
+  console.log("addTask payload →", payload);
 
-  console.log("addTask payload →", payload); // ← DEBUG
-
-  const docRef = await addDoc(collection(db, "tasks"), payload);
-  console.log("Task saved with ID:", docRef.id); // ← SUCCESS
-  return docRef.id;
+  const ref = await addDoc(collection(db, "tasks"), payload);
+  console.log("Task saved →", ref.id);
+  return ref.id;
 }
 
 // ────── COMPLETE TASK ──────
-export async function completeTask(id: string): Promise<void> {
+export async function completeTask(id: string) {
   await updateDoc(doc(db, "tasks", id), { status: "completed" });
-  console.log("Task completed:", id);
-}
-
-// ────── DELETE TASK (optional) ──────
-export async function deleteTask(id: string): Promise<void> {
-  await deleteDoc(doc(db, "tasks", id));
-  console.log("Task deleted:", id);
+  console.log("Task completed →", id);
 }
