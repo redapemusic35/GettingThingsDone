@@ -15,12 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addTask } from "@/hooks/useFirestoreTasks";
-import { Task } from "@shared/schema";
 
 interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onTaskAdded: () => void;
+  onTaskAdded?: () => void;
 }
 
 export default function NewTaskModal({
@@ -29,14 +28,51 @@ export default function NewTaskModal({
   onTaskAdded,
 }: NewTaskModalProps) {
   const { toast } = useToast();
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [context, setContext] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [dueDate, setDueDate] = useState<string>(""); // ISO string
+  const [dueDate, setDueDate] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setContext("");
+    setTagInput("");
+    setTags([]);
+    setDueDate("");
+  };
+
+  // ────── SUBMIT HANDLER (USED!) ──────
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      toast({ title: "Error", description: "Title required", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await addTask({
+        title: title.trim(),
+        ...(description.trim() && { description: description.trim() }),
+        ...(context.trim() && { context: context.trim() }),
+        ...(tags.length > 0 && { tags }),
+        ...(dueDate && { dueDate }),
+        status: "active",
+      });
+
+      toast({ title: "Success", description: "Task added!" });
+      resetForm();
+      onClose();
+      onTaskAdded?.();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -45,121 +81,63 @@ export default function NewTaskModal({
     }
   };
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
-
-  const handleSubmit = async () => {
-  if (!title.trim()) {
-    toast({ title: "Error", description: "Title is required.", variant: "destructive" });
-    return;
-  }
-
-  setLoading(true);
-  try {
-    await addTask({
-      title: title.trim(),
-      ...(description.trim() && { description: description.trim() }),
-      ...(context.trim() && { context: context.trim() }),
-      ...(tags.length > 0 && { tags }),
-      ...(dueDate && { dueDate }),
-      status: "active",
-    });
-
-    toast({ title: "Success", description: "Task added!" });
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setContext("");
-    setTags([]);
-    setTagInput("");
-    setDueDate("");
-    onClose();
-    onTaskAdded();
-  } catch (e: any) {
-    toast({
-      title: "Error",
-      description: e.message || "Failed to add task.",
-      variant: "destructive",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const handleClose = () => {
-    if (!loading) {
-      onClose();
-    }
+  const handleRemoveTag = (tag: string) => {
+    setTags(tags.filter((t) => t !== tag));
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Title */}
           <div>
             <Label htmlFor="title">Title *</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Buy groceries"
+              placeholder="Buy milk"
               disabled={loading}
             />
           </div>
 
-          {/* Description */}
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional details..."
+              placeholder="Optional..."
               rows={3}
               disabled={loading}
             />
           </div>
 
-          {/* Context */}
           <div>
             <Label htmlFor="context">Context</Label>
             <Input
               id="context"
               value={context}
               onChange={(e) => setContext(e.target.value)}
-              placeholder="@home, @work"
+              placeholder="@home"
               disabled={loading}
             />
           </div>
 
-          {/* Tags */}
           <div>
             <Label>Tags</Label>
             <div className="flex gap-2">
               <Input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
                 placeholder="Add tag..."
                 disabled={loading}
               />
-              <Button
-                type="button"
-                size="icon"
-                onClick={handleAddTag}
-                disabled={loading || !tagInput.trim()}
-              >
+              <Button type="button" size="icon" onClick={handleAddTag} disabled={loading}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -179,7 +157,6 @@ export default function NewTaskModal({
             </div>
           </div>
 
-          {/* Due Date */}
           <div>
             <Label htmlFor="dueDate">Due Date</Label>
             <Input
@@ -193,7 +170,7 @@ export default function NewTaskModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>

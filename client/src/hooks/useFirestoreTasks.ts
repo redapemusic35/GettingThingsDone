@@ -14,6 +14,8 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
+// client/src/hooks/useFirestoreTasks.ts
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Task } from "@shared/schema";
 
 export function useFirestoreTasks(
@@ -83,13 +85,16 @@ export async function addTask(
 ): Promise<string> {
   if (!auth.currentUser) throw new Error("Not logged in");
 
-  const docRef = await addDoc(collection(db, "tasks"), {
+  const payload = {
     ...data,
-    uid: auth.currentUser.uid,  // ← MUST BE HERE
+    uid: auth.currentUser.uid,
     createdAt: serverTimestamp(),
-  });
+  };
 
-  console.log("Task added with ID:", docRef.id);
+  console.log("addTask payload →", payload); // ← DEBUG
+
+  const docRef = await addDoc(collection(db, "tasks"), payload);
+  console.log("Task saved with ID:", docRef.id); // ← SUCCESS
   return docRef.id;
 }
 
