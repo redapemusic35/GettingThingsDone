@@ -22,25 +22,24 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // --- Prevent double mount ---
-    let mounted = true;
+    // Clean up old listener
     if (unsubRef.current) {
       console.log("Cleaning up old listener");
       unsubRef.current();
       unsubRef.current = null;
     }
 
-    if (!auth.currentUser) {
-      if (mounted) {
-        setTasks([]);
-        setLoading(false);
-      }
+    const user = auth.currentUser;
+    if (!user) {
+      console.log("No user → empty tasks");
+      setTasks([]);
+      setLoading(false);
       return;
     }
 
     let q = query(
       collection(db, "tasks"),
-      where("uid", "==", auth.currentUser.uid),
+      where("uid", "==", user.uid),
       orderBy("createdAt", "desc")
     );
 
@@ -50,12 +49,11 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
     else if (filter === "project" && value) q = query(q, where("project", "==", value));
     else if (filter === "archive") q = query(q, where("status", "==", "completed"));
 
-    console.log("Starting listener →", { filter, value });
+    console.log("Starting listener for UID:", user.uid, { filter, value });
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        if (!mounted) return;
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
         console.log("Snapshot →", list.length, "tasks");
         setTasks(list);
@@ -63,20 +61,17 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
       },
       (err) => {
         console.error("Firestore error:", err);
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     );
 
     unsubRef.current = unsub;
 
     return () => {
-      mounted = false;
-      if (unsubRef.current) {
-        console.log("Unsubscribing");
-        unsubRef.current();
-      }
+      console.log("Unsubscribing");
+      if (unsubRef.current) unsubRef.current();
     };
-  }, [filter, value]);
+  }, [filter, value, auth.currentUser?.uid]); // ← Re-run on login
 
   return { tasks, loading };
 }

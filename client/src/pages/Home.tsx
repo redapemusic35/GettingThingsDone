@@ -1,16 +1,26 @@
 // client/src/pages/Home.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFirestoreTasks } from "@/hooks/useFirestoreTasks";
 import TaskList from "@/components/TaskList";
 import NewTaskModal from "@/components/NewTaskModal";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { auth } from "../firebase";
 
 export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
-  const { tasks, loading } = useFirestoreTasks("active");
+  const [userUid, setUserUid] = useState<string | null>(null);
 
-  console.log("Home render →", { loading, taskCount: tasks.length });
+  // Re-render when user logs in/out
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      console.log("Auth changed → UID:", user?.uid || "none");
+      setUserUid(user?.uid || null);
+    });
+    return unsubscribe;
+  }, []);
+
+  const { tasks, loading } = useFirestoreTasks("active");
 
   return (
     <>
