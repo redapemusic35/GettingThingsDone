@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Projects() {
   const [projects, setProjects] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  
+
   // Query to get all tasks
   const { data: allTasks, isLoading: isLoadingAllTasks } = useQuery<Task[]>({
     queryKey: ['/api/tasks/active'],
@@ -42,7 +42,7 @@ export default function Projects() {
         )
       );
       setProjects(uniqueProjects);
-      
+
       // If there are projects and none is selected, select the first one
       if (uniqueProjects.length > 0 && !selectedProject) {
         setSelectedProject(uniqueProjects[0]);
@@ -51,13 +51,13 @@ export default function Projects() {
   }, [allTasks, selectedProject]);
 
   // Tasks to display - either filtered by project or all tasks
-  const tasksToDisplay = selectedProject ? projectTasks : allTasks;
+  const { tasks } = useFirestoreTasks("project", selectedProject);
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Projects</h1>
-        
+
         {/* Projects filter */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2">Select Project</h2>
@@ -84,7 +84,7 @@ export default function Projects() {
             )}
           </div>
         </div>
-        
+
         <Separator className="my-6" />
 
         {/* Project tasks */}

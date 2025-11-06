@@ -10,9 +10,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Archive() {
-  const { toast } = useToast();
+  const { tasks } = useFirestoreTasks("archive");
   const queryClient = useQueryClient();
-  
+
   const completedTasksQuery = useQuery<Task[]>({
     queryKey: ['/api/tasks/completed'],
   });
