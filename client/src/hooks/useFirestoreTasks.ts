@@ -1,5 +1,5 @@
 // client/src/hooks/useFirestoreTasks.ts
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   collection,
   query,
@@ -20,8 +20,16 @@ export function useFirestoreTasks(
 ) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    // Clean up any previous listener
+    if (unsubRef.current) {
+      console.log("Cleaning up old listener");
+      unsubRef.current();
+      unsubRef.current = null;
+    }
+
     if (!auth.currentUser) {
       console.log("No user → empty tasks");
       setTasks([]);
@@ -43,23 +51,28 @@ export function useFirestoreTasks(
       q = query(q, where("tags", "array-contains", value));
     }
 
-    console.log("Query →", { filter, value, uid: auth.currentUser.uid });
+    console.log("Starting Firestore listener →", { filter, value, uid: auth.currentUser.uid });
 
     const unsub = onSnapshot(
       q,
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-        console.log("Snapshot →", list);
+        console.log("Snapshot received →", list);
         setTasks(list);
         setLoading(false);
       },
       (err) => {
-        console.error("Firestore error:", err);
+        console.error("Firestore listener error:", err);
         setLoading(false);
       }
     );
 
-    return () => unsub();
+    unsubRef.current = unsub;
+
+    return () => {
+      console.log("Unsubscribing from Firestore");
+      if (unsubRef.current) unsubRef.current();
+    };
   }, [filter, value]);
 
   return { tasks, loading };

@@ -7,8 +7,8 @@ export default function Home() {
 
   console.log("Home → tasks:", tasks, "loading:", loading);
 
-  if (loading) return <div>Loading...</div>;
-  if (!tasks.length) return <div>No active tasks</div>;
+  if (loading) return <div className="p-4 text-center">Loading...</div>;
+  if (!tasks.length) return <div className="p-4 text-center text-gray-500">No active tasks</div>;
 
   return <TaskList tasks={tasks} />;
 }
