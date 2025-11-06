@@ -6,6 +6,7 @@ import {
   where,
   onSnapshot,
   orderBy,
+  getDocs,
   addDoc,
   serverTimestamp,
   doc,
@@ -21,25 +22,14 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
   const [loading, setLoading] = useState(true);
   const unsubRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    // Clean up old listener
-    if (unsubRef.current) {
-      console.log("Cleaning up old listener");
-      unsubRef.current();
-      unsubRef.current = null;
-    }
-
-    const user = auth.currentUser;
-    if (!user) {
-      console.log("No user → empty tasks");
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
+  // --- FETCH ONCE on mount / login ---
+  const fetchTasks = async () => {
+    if (!auth.currentUser) return;
+    setLoading(true);
 
     let q = query(
       collection(db, "tasks"),
-      where("uid", "==", user.uid),
+      where("uid", "==", auth.currentUser.uid),
       orderBy("createdAt", "desc")
     );
 
@@ -49,31 +39,71 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
     else if (filter === "project" && value) q = query(q, where("project", "==", value));
     else if (filter === "archive") q = query(q, where("status", "==", "completed"));
 
-    console.log("Starting listener for UID:", user.uid, { filter, value });
+    try {
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
+      console.log("Fetched →", list.length, "tasks");
+      setTasks(list);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Clean up old listener
+    if (unsubRef.current) {
+      console.log("Cleaning up old listener");
+      unsubRef.current();
+      unsubRef.current = null;
+    }
+
+    if (!auth.currentUser) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+
+    // --- FETCH ONCE ---
+    fetchTasks();
+
+    // --- REAL‑TIME LISTENER ---
+    let q = query(
+      collection(db, "tasks"),
+      where("uid", "==", auth.currentUser.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    if (filter === "active") q = query(q, where("status", "==", "active"));
+    else if (filter === "context" && value) q = query(q, where("context", "==", value));
+    else if (filter === "tag" && value) q = query(q, where("tags", "array-contains", value));
+    else if (filter === "project" && value) q = query(q, where("project", "==", value));
+    else if (filter === "archive") q = query(q, where("status", "==", "completed"));
+
+    console.log("Starting real-time listener →", { filter, value });
 
     const unsub = onSnapshot(
       q,
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-        console.log("Snapshot →", list.length, "tasks");
+        console.log("Live update →", list.length, "tasks");
         setTasks(list);
-        setLoading(false);
       },
-      (err) => {
-        console.error("Firestore error:", err);
-        setLoading(false);
-      }
+      (err) => console.error("Listener error:", err)
     );
 
     unsubRef.current = unsub;
 
     return () => {
-      console.log("Unsubscribing");
-      if (unsubRef.current) unsubRef.current();
+      if (unsubRef.current) {
+        console.log("Unsubscribing");
+        unsubRef.current();
+      }
     };
-  }, [filter, value, auth.currentUser?.uid]); // ← Re-run on login
+  }, [filter, value, auth.currentUser?.uid]);
 
-  return { tasks, loading };
+  return { tasks, loading, refetch: fetchTasks };
 }
 
 // ADD TASK
