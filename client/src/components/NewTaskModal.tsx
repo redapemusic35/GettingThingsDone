@@ -50,42 +50,42 @@ export default function NewTaskModal({
   };
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast({ title: "Error", description: "Title is required.", variant: "destructive" });
-      return;
-    }
+  if (!title.trim()) {
+    toast({ title: "Error", description: "Title is required.", variant: "destructive" });
+    return;
+  }
 
-    setLoading(true);
-    try {
-      await addTask({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        context: context.trim() || undefined,
-        tags: tags.length > 0 ? tags : undefined,
-        status: "active",
-        dueDate: dueDate || undefined,
-      });
+  setLoading(true);
+  try {
+    await addTask({
+      title: title.trim(),
+      ...(description.trim() && { description: description.trim() }),
+      ...(context.trim() && { context: context.trim() }),
+      ...(tags.length > 0 && { tags }),
+      ...(dueDate && { dueDate }),
+      status: "active",
+    });
 
-      toast({ title: "Success", description: "Task added!" });
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setContext("");
-      setTags([]);
-      setTagInput("");
-      setDueDate("");
-      onClose();
-      onTaskAdded();
-    } catch (e: any) {
-      toast({
-        title: "Error",
-        description: e.message || "Failed to add task.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    toast({ title: "Success", description: "Task added!" });
+    // Reset form
+    setTitle("");
+    setDescription("");
+    setContext("");
+    setTags([]);
+    setTagInput("");
+    setDueDate("");
+    onClose();
+    onTaskAdded();
+  } catch (e: any) {
+    toast({
+      title: "Error",
+      description: e.message || "Failed to add task.",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleClose = () => {
     if (!loading) {
