@@ -77,6 +77,7 @@ export function useFirestoreTasks(
 }
 
 // ────── ADD TASK ──────
+// client/src/hooks/useFirestoreTasks.ts
 export async function addTask(
   data: Omit<Task, "id" | "uid" | "createdAt">
 ): Promise<string> {
@@ -84,7 +85,7 @@ export async function addTask(
 
   const docRef = await addDoc(collection(db, "tasks"), {
     ...data,
-    uid: auth.currentUser.uid,
+    uid: auth.currentUser.uid, // ← REQUIRED: ties task to user
     createdAt: serverTimestamp(),
   });
 
