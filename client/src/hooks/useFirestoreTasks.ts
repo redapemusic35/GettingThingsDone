@@ -85,7 +85,7 @@ export async function addTask(
 
   const docRef = await addDoc(collection(db, "tasks"), {
     ...data,
-    uid: auth.currentUser.uid, // ← REQUIRED: ties task to user
+    uid: auth.currentUser.uid,  // ← MUST BE HERE
     createdAt: serverTimestamp(),
   });
 
