@@ -14,16 +14,23 @@ import {
 import { db, auth } from "../firebase";
 import { Task } from "@shared/schema";
 
-type FilterType = "active" | "context" | "tag" | "project" | "archive";
+type Filter = "active" | "context" | "tag" | "project" | "archive";
 
-export function useFirestoreTasks(filter?: FilterType, value?: string) {
+export function useFirestoreTasks(filter?: Filter, value?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (unsubRef.current) unsubRef.current();
+    // Clean up old listener
+    if (unsubRef.current) {
+      console.log("Cleaning up previous Firestore listener");
+      unsubRef.current();
+      unsubRef.current = null;
+    }
+
     if (!auth.currentUser) {
+      console.log("No user logged in → empty tasks");
       setTasks([]);
       setLoading(false);
       return;
@@ -47,21 +54,28 @@ export function useFirestoreTasks(filter?: FilterType, value?: string) {
       q = query(q, where("status", "==", "completed"));
     }
 
-    console.log("Firestore query →", { filter, value });
+    console.log("Starting Firestore listener →", { filter, value, uid: auth.currentUser.uid });
 
     const unsub = onSnapshot(
       q,
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-        console.log("Snapshot →", list);
+        console.log("Snapshot received →", list);
         setTasks(list);
         setLoading(false);
       },
-      (err) => console.error("Firestore error:", err)
+      (err) => {
+        console.error("Firestore listener error:", err);
+        setLoading(false);
+      }
     );
 
     unsubRef.current = unsub;
-    return () => unsubRef.current?.();
+
+    return () => {
+      console.log("Unsubscribing from Firestore");
+      if (unsubRef.current) unsubRef.current();
+    };
   }, [filter, value]);
 
   return { tasks, loading };
@@ -79,4 +93,5 @@ export async function addTask(data: Omit<Task, "id" | "uid" | "createdAt">) {
 // COMPLETE TASK
 export async function completeTask(id: string) {
   await updateDoc(doc(db, "tasks", id), { status: "completed" });
+  console.log("Task completed →", id);
 }

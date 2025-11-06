@@ -10,31 +10,29 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const { tasks, loading } = useFirestoreTasks("active");
 
-  console.log("Home → tasks:", tasks, "loading:", loading);
+  console.log("Home → loading:", loading, "tasks:", tasks);
 
   return (
     <>
-      {/* Task List */}
       {loading ? (
-        <div className="p-4 text-center">Loading...</div>
+        <div className="p-8 text-center text-gray-500">Loading tasks...</div>
       ) : tasks.length === 0 ? (
-        <div className="p-4 text-center text-gray-500">No active tasks</div>
+        <div className="p-8 text-center text-gray-500">No active tasks</div>
       ) : (
         <TaskList tasks={tasks} />
       )}
 
-      {/* Floating + Button */}
+      {/* FAB */}
       <div className="fixed right-6 bottom-6 z-50">
         <Button
           size="icon"
-          className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+          className="h-14 w-14 rounded-full shadow-lg bg-primary"
           onClick={() => setModalOpen(true)}
         >
           <Plus className="h-6 w-6" />
         </Button>
       </div>
 
-      {/* Modal */}
       <NewTaskModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
