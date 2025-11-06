@@ -28,6 +28,8 @@ export default function NewTaskModal({
   onTaskAdded,
 }: NewTaskModalProps) {
   const { toast } = useToast();
+
+  // ────── FORM STATE ──────
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [context, setContext] = useState("");
@@ -36,6 +38,10 @@ export default function NewTaskModal({
   const [dueDate, setDueDate] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ────── QUICK ADD STATE ──────
+  const [quickInput, setQuickInput] = useState("");
+
+  // ────── RESET FORM ──────
   const resetForm = () => {
     setTitle("");
     setDescription("");
@@ -43,23 +49,48 @@ export default function NewTaskModal({
     setTagInput("");
     setTags([]);
     setDueDate("");
+    setQuickInput("");
   };
 
-  // ────── SUBMIT HANDLER (USED!) ──────
-  const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast({ title: "Error", description: "Title required", variant: "destructive" });
+  // ────── QUICK ADD PARSER ──────
+  const parseQuickAdd = async () => {
+    const text = quickInput.trim();
+    if (!text) return;
+
+    const words = text.split(/\s+/);
+
+    // Extract special tokens
+    const contextWord = words.find((w) => w.startsWith("@"))?.slice(1);
+    const tagWords = words.filter((w) => w.startsWith("+")).map((w) => w.slice(1));
+    const projectMatch = words.find((w) => w.startsWith("pro:"));
+    const project = projectMatch?.slice(4);
+    const dueMatch = words.find((w) => w.startsWith("due:"));
+    const due = dueMatch?.slice(4);
+
+    // Everything else is the title
+    const titleWords = words.filter(
+      (w) =>
+        !w.startsWith("@") &&
+        !w.startsWith("+") &&
+        !w.startsWith("pro:") &&
+        !w.startsWith("due:")
+    );
+    const titleText = titleWords.join(" ");
+
+    if (!titleText) {
+      toast({ title: "Error", description: "Title is required", variant: "destructive" });
       return;
     }
 
     setLoading(true);
     try {
       await addTask({
-        title: title.trim(),
+        title: titleText,
         ...(description.trim() && { description: description.trim() }),
-        ...(context.trim() && { context: context.trim() }),
-        ...(tags.length > 0 && { tags }),
-        ...(dueDate && { dueDate }),
+        ...(contextWord && { context: contextWord }),
+        ...(tagWords.length > 0 && { tags: tagWords }),
+        ...(project && { project }),
+        ...(due && { dueDate: due }),
         status: "active",
       });
 
@@ -74,13 +105,40 @@ export default function NewTaskModal({
     }
   };
 
+  // ────── REGULAR SUBMIT (kept for manual entry) ──────
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      toast({ title: "Error", description: "Title required", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      await addTask({
+        title: title.trim(),
+        ...(description.trim() && { description: description.trim() }),
+        ...(context.trim() && { context: context.trim() }),
+        ...(tags.length > 0 && { tags }),
+        ...(dueDate && { dueDate }),
+        status: "active",
+      });
+      toast({ title: "Success", description: "Task added!" });
+      resetForm();
+      onClose();
+      onTaskAdded?.();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ────── TAG HANDLERS ──────
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
       setTagInput("");
     }
   };
-
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
@@ -93,6 +151,29 @@ export default function NewTaskModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* ────── QUICK ADD ────── */}
+          <div>
+            <Label>Quick Add</Label>
+            <Input
+              placeholder="Buy milk +groceries @home pro:errands due:2025-11-07"
+              value={quickInput}
+              onChange={(e) => setQuickInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  parseQuickAdd();
+                }
+              }}
+              disabled={loading}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Press Enter to add. Use +tag, @context, pro:project, due:YYYY-MM-DD
+            </p>
+          </div>
+
+          <div className="h-px bg-gray-200" />
+
+          {/* ────── MANUAL FORM ────── */}
           <div>
             <Label htmlFor="title">Title *</Label>
             <Input
@@ -133,7 +214,12 @@ export default function NewTaskModal({
               <Input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
                 placeholder="Add tag..."
                 disabled={loading}
               />

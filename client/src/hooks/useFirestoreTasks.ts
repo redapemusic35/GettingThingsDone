@@ -14,24 +14,16 @@ import {
 import { db, auth } from "../firebase";
 import { Task } from "@shared/schema";
 
-export function useFirestoreTasks(
-  filter?: "active" | "context" | "tag",
-  value?: string
-) {
+type FilterType = "active" | "context" | "tag" | "project" | "archive";
+
+export function useFirestoreTasks(filter?: FilterType, value?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Clean up any previous listener
-    if (unsubRef.current) {
-      console.log("Cleaning up old listener");
-      unsubRef.current();
-      unsubRef.current = null;
-    }
-
+    if (unsubRef.current) unsubRef.current();
     if (!auth.currentUser) {
-      console.log("No user → empty tasks");
       setTasks([]);
       setLoading(false);
       return;
@@ -49,55 +41,42 @@ export function useFirestoreTasks(
       q = query(q, where("context", "==", value));
     } else if (filter === "tag" && value) {
       q = query(q, where("tags", "array-contains", value));
+    } else if (filter === "project" && value) {
+      q = query(q, where("project", "==", value));
+    } else if (filter === "archive") {
+      q = query(q, where("status", "==", "completed"));
     }
 
-    console.log("Starting Firestore listener →", { filter, value, uid: auth.currentUser.uid });
+    console.log("Firestore query →", { filter, value });
 
     const unsub = onSnapshot(
       q,
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-        console.log("Snapshot received →", list);
+        console.log("Snapshot →", list);
         setTasks(list);
         setLoading(false);
       },
-      (err) => {
-        console.error("Firestore listener error:", err);
-        setLoading(false);
-      }
+      (err) => console.error("Firestore error:", err)
     );
 
     unsubRef.current = unsub;
-
-    return () => {
-      console.log("Unsubscribing from Firestore");
-      if (unsubRef.current) unsubRef.current();
-    };
+    return () => unsubRef.current?.();
   }, [filter, value]);
 
   return { tasks, loading };
 }
 
-// ────── ADD TASK ──────
-export async function addTask(
-  data: Omit<Task, "id" | "uid" | "createdAt">
-): Promise<string> {
+// ADD TASK
+export async function addTask(data: Omit<Task, "id" | "uid" | "createdAt">) {
   if (!auth.currentUser) throw new Error("Not logged in");
-
-  const payload = {
-    ...data,
-    uid: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-  };
-  console.log("addTask payload →", payload);
-
+  const payload = { ...data, uid: auth.currentUser.uid, createdAt: serverTimestamp() };
   const ref = await addDoc(collection(db, "tasks"), payload);
-  console.log("Task saved →", ref.id);
+  console.log("Task added →", ref.id);
   return ref.id;
 }
 
-// ────── COMPLETE TASK ──────
+// COMPLETE TASK
 export async function completeTask(id: string) {
   await updateDoc(doc(db, "tasks", id), { status: "completed" });
-  console.log("Task completed →", id);
 }
