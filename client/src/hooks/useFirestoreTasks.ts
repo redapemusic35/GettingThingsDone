@@ -22,17 +22,19 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Clean up old listener
+    // --- Prevent double mount ---
+    let mounted = true;
     if (unsubRef.current) {
-      console.log("Cleaning up previous Firestore listener");
+      console.log("Cleaning up old listener");
       unsubRef.current();
       unsubRef.current = null;
     }
 
     if (!auth.currentUser) {
-      console.log("No user logged in → empty tasks");
-      setTasks([]);
-      setLoading(false);
+      if (mounted) {
+        setTasks([]);
+        setLoading(false);
+      }
       return;
     }
 
@@ -42,39 +44,37 @@ export function useFirestoreTasks(filter?: Filter, value?: string) {
       orderBy("createdAt", "desc")
     );
 
-    if (filter === "active") {
-      q = query(q, where("status", "==", "active"));
-    } else if (filter === "context" && value) {
-      q = query(q, where("context", "==", value));
-    } else if (filter === "tag" && value) {
-      q = query(q, where("tags", "array-contains", value));
-    } else if (filter === "project" && value) {
-      q = query(q, where("project", "==", value));
-    } else if (filter === "archive") {
-      q = query(q, where("status", "==", "completed"));
-    }
+    if (filter === "active") q = query(q, where("status", "==", "active"));
+    else if (filter === "context" && value) q = query(q, where("context", "==", value));
+    else if (filter === "tag" && value) q = query(q, where("tags", "array-contains", value));
+    else if (filter === "project" && value) q = query(q, where("project", "==", value));
+    else if (filter === "archive") q = query(q, where("status", "==", "completed"));
 
-    console.log("Starting Firestore listener →", { filter, value, uid: auth.currentUser.uid });
+    console.log("Starting listener →", { filter, value });
 
     const unsub = onSnapshot(
       q,
       (snap) => {
+        if (!mounted) return;
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Task[];
-        console.log("Snapshot received →", list);
+        console.log("Snapshot →", list.length, "tasks");
         setTasks(list);
         setLoading(false);
       },
       (err) => {
-        console.error("Firestore listener error:", err);
-        setLoading(false);
+        console.error("Firestore error:", err);
+        if (mounted) setLoading(false);
       }
     );
 
     unsubRef.current = unsub;
 
     return () => {
-      console.log("Unsubscribing from Firestore");
-      if (unsubRef.current) unsubRef.current();
+      mounted = false;
+      if (unsubRef.current) {
+        console.log("Unsubscribing");
+        unsubRef.current();
+      }
     };
   }, [filter, value]);
 
@@ -93,5 +93,4 @@ export async function addTask(data: Omit<Task, "id" | "uid" | "createdAt">) {
 // COMPLETE TASK
 export async function completeTask(id: string) {
   await updateDoc(doc(db, "tasks", id), { status: "completed" });
-  console.log("Task completed →", id);
 }

@@ -10,19 +10,18 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const { tasks, loading } = useFirestoreTasks("active");
 
-  console.log("Home → loading:", loading, "tasks:", tasks);
+  console.log("Home render →", { loading, taskCount: tasks.length });
 
   return (
     <>
       {loading ? (
-        <div className="p-8 text-center text-gray-500">Loading tasks...</div>
+        <div className="p-8 text-center text-gray-500">Loading...</div>
       ) : tasks.length === 0 ? (
         <div className="p-8 text-center text-gray-500">No active tasks</div>
       ) : (
         <TaskList tasks={tasks} />
       )}
 
-      {/* FAB */}
       <div className="fixed right-6 bottom-6 z-50">
         <Button
           size="icon"
